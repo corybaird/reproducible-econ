@@ -1,0 +1,223 @@
+includes: []
+
+project:
+  name: nakamura_steinsson_2018
+  seed: 42
+
+data:
+  nominal_yields_path: ${project_root}/data/raw/nakamura_steinsson_2018/NominalYields.parquet.gzip
+  real_yields_path: ${project_root}/data/raw/nakamura_steinsson_2018/RealYields.parquet.gzip
+  fomc_meetings_path: ${project_root}/data/raw/nakamura_steinsson_2018/FOMCmeetings.parquet.gzip
+  shocks_path: ${project_root}/data/raw/nakamura_steinsson_2018/ABJ-2024-monetary-policy-surprises_Data.parquet.gzip
+  start_date: "2000-01-01"
+  end_date: "2014-03-31"
+  scheduled_only: true
+  exclude_crisis_start: "2008-07-01"
+  exclude_crisis_end: "2009-06-30"
+  maturities: ["02", "03", "05", "10"]
+
+estimation:
+  shock_column: ns
+  cov_type: HC1
+  winsorize_pct: 0.0
+  specs:
+    - name: nominal_2y
+      dependent: d_sveny02
+      label: "2Y Nominal Treasury"
+    - name: real_2y
+      dependent: d_tipsy02
+      label: "2Y Real TIPS"
+    - name: breakeven_2y
+      dependent: d_breakeven02
+      label: "2Y Breakeven Inflation"
+    - name: nominal_3y
+      dependent: d_sveny03
+      label: "3Y Nominal Treasury"
+    - name: nominal_5y
+      dependent: d_sveny05
+      label: "5Y Nominal Treasury"
+    - name: real_5y
+      dependent: d_tipsy05
+      label: "5Y Real TIPS"
+    - name: breakeven_5y
+      dependent: d_breakeven05
+      label: "5Y Breakeven Inflation"
+    - name: nominal_10y
+      dependent: d_sveny10
+      label: "10Y Nominal Treasury"
+    - name: real_10y
+      dependent: d_tipsy10
+      label: "10Y Real TIPS"
+    - name: breakeven_10y
+      dependent: d_breakeven10
+      label: "10Y Breakeven Inflation"
+
+output:
+  cache_dir: .cache/nakamura_steinsson_2018
+  reports_dir: reports/nakamura_steinsson_2018
+  tables_dir: ${output.reports_dir}/tables
+  macros_path: ${output.reports_dir}/macros.tex
+  claims_path: ${output.reports_dir}/claims_report.json
+  timestamped_manifest: false
+
+cache:
+  retain_prior_fingerprints: 2
+
+tables:
+  strict: true
+  exports:
+    - key: summary_stats
+      filename: summary_stats.tex
+      caption: "Nakamura and Steinsson (2018) FOMC Event-Study Summary Statistics (2000--2014, excl. 2008H2--2009H1)"
+      label: "tab:ns_summary_stats"
+      float_format: "%.3f"
+      columns: [variable, mean, std, min, max, n]
+      rename:
+        variable: Variable
+        mean: Mean
+        std: SD
+        min: Min
+        max: Max
+        n: N
+    - key: estimates
+      filename: yield_responses.tex
+      caption: "High-Frequency Yield Responses to the Policy News Shock (Nakamura and Steinsson 2018, Table I Replication)"
+      label: "tab:ns_yield_responses"
+      note: "OLS regressions of daily yield changes (pp) on the policy news shock on scheduled FOMC meeting days, 2000--2014 excluding July 2008--June 2009. HC1 robust standard errors."
+      float_format: "%.3f"
+      columns: [outcome, coef, se, pval, n_obs, r2]
+      rename:
+        outcome: Yield Series
+        coef: Coef
+        se: SE
+        pval: "p-value"
+        n_obs: N
+        r2: R2
+
+latex_macros:
+  output_path: ${output.macros_path}
+  precision: 3
+  short_precision: 2
+  pval_precision: 3
+  fields: [coef, se, pval, n_obs]
+  entries:
+    - tidy_key: estimates
+      spec: nominal_2y
+      key_variable: ns
+      name: NomTwoY
+    - tidy_key: estimates
+      spec: real_2y
+      key_variable: ns
+      name: RealTwoY
+    - tidy_key: estimates
+      spec: breakeven_2y
+      key_variable: ns
+      name: BreakevenTwoY
+    - tidy_key: estimates
+      spec: nominal_5y
+      key_variable: ns
+      name: NomFiveY
+    - tidy_key: estimates
+      spec: real_5y
+      key_variable: ns
+      name: RealFiveY
+    - tidy_key: estimates
+      spec: breakeven_5y
+      key_variable: ns
+      name: BreakevenFiveY
+    - tidy_key: estimates
+      spec: nominal_10y
+      key_variable: ns
+      name: NomTenY
+    - tidy_key: estimates
+      spec: real_10y
+      key_variable: ns
+      name: RealTenY
+
+claims:
+  fail_on_error: false
+  entries:
+    - id: nom_2y_table1
+      description: "2Y nominal yield response matches Nakamura & Steinsson (2018, QJE Table I: 1.10, SE 0.33)"
+      tidy_key: estimates
+      spec: nominal_2y
+      key_variable: ns
+      sign: positive
+      coef: 1.10
+      tol: 0.10
+      pval_below: 0.01
+    - id: real_2y_table1
+      description: "2Y real TIPS response matches Nakamura & Steinsson (2018, QJE Table I: 1.06, SE 0.24)"
+      tidy_key: estimates
+      spec: real_2y
+      key_variable: ns
+      sign: positive
+      coef: 1.06
+      tol: 0.10
+      pval_below: 0.01
+    - id: breakeven_2y_table1
+      description: "2Y breakeven inflation response is muted, matching Nakamura & Steinsson (2018, QJE Table I: 0.04, SE 0.18)"
+      tidy_key: estimates
+      spec: breakeven_2y
+      key_variable: ns
+      coef: 0.04
+      tol: 0.10
+      pval_above: 0.10
+    - id: nom_5y_table1
+      description: "5Y nominal yield response matches Nakamura & Steinsson (2018, QJE Table I: 0.73)"
+      tidy_key: estimates
+      spec: nominal_5y
+      key_variable: ns
+      sign: positive
+      coef: 0.73
+      tol: 0.05
+      pval_below: 0.01
+    - id: real_5y_table1
+      description: "5Y real TIPS response matches Nakamura & Steinsson (2018, QJE Table I: 0.64)"
+      tidy_key: estimates
+      spec: real_5y
+      key_variable: ns
+      sign: positive
+      coef: 0.64
+      tol: 0.05
+      pval_below: 0.01
+
+default_module: projects.nakamura_steinsson_2018.stages
+
+stages:
+  - name: prepare_event_data
+    class: PrepareEventDataStage
+    phase: data
+    produces: [event_panel, summary_stats]
+    cache: true
+    cache_inputs: [data, project]
+
+  - name: estimate_yield_responses
+    class: EstimateYieldResponseStage
+    phase: estimate
+    requires: [event_panel]
+    produces: [estimates]
+    cache: true
+    cache_inputs: [estimation]
+
+  - name: export_tables
+    module: reproducible_econ.emitters.tables
+    class: LatexTableStage
+    phase: report
+    requires: [summary_stats, estimates]
+    cache: false
+
+  - name: export_macros
+    module: reproducible_econ.emitters.macros
+    class: LatexMacroStage
+    phase: report
+    requires: [estimates]
+    cache: false
+
+  - name: check_claims
+    module: reproducible_econ.emitters.claims
+    class: ClaimCheckStage
+    phase: report
+    requires: [estimates]
+    produces: [claims_results]
+    cache: false

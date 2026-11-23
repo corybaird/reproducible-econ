@@ -1,0 +1,163 @@
+includes: []
+
+project:
+  name: macro_demo
+  seed: 42
+
+data:
+  economies: [ECON_A, ECON_B, ECON_C, ECON_D]
+  n_quarters: 30
+  start_year: 2015
+  start_quarter: "2015Q1"
+  end_quarter: "2022Q2"
+  lag_periods: 1
+  dgp:
+    intercept: 2.0
+    slope_unemp: -0.45
+    persistence: 0.55
+    noise_std: 0.25
+
+estimation:
+  winsorize_pct: 0.0
+  specs:
+    - name: baseline_ols
+      dependent: inflation
+      regressors: [unemployment_gap, lag_inflation]
+    - name: univariate_ols
+      dependent: inflation
+      regressors: [unemployment_gap]
+
+output:
+  cache_dir: .cache/macro_demo
+  reports_dir: reports/macro_demo
+  tables_dir: ${output.reports_dir}/tables
+  figures_dir: ${output.reports_dir}/figures
+  macros_path: ${output.reports_dir}/macros.tex
+  claims_path: ${output.reports_dir}/claims_report.json
+  timestamped_manifest: false
+
+cache:
+  retain_prior_fingerprints: 2
+
+plotting:
+  enabled: true
+  dpi: 200
+  on_missing_matplotlib: skip
+
+tables:
+  strict: true
+  exports:
+    - key: summary_stats
+      filename: summary_stats.tex
+      caption: "Synthetic Macro Panel Summary Statistics"
+      label: "tab:summary_stats"
+      float_format: "%.3f"
+      columns: [variable, mean, std, min, max, n]
+      rename:
+        variable: Variable
+        mean: Mean
+        std: SD
+        min: Min
+        max: Max
+        n: N
+    - key: estimates
+      filename: phillips_estimates.tex
+      caption: "Synthetic Phillips Curve OLS Estimates"
+      label: "tab:phillips_estimates"
+      float_format: "%.4f"
+      columns: [spec_name, key_variable, coef, se, pval, n_obs, r2]
+      rename:
+        spec_name: Spec
+        key_variable: Variable
+        coef: Coef
+        se: SE
+        pval: "p-value"
+        n_obs: N
+        r2: R2
+
+latex_macros:
+  output_path: ${output.macros_path}
+  precision: 4
+  short_precision: 3
+  pval_precision: 3
+  fields: [coef, se, pval, n_obs]
+  entries:
+    - tidy_key: estimates
+      spec: baseline_ols
+      key_variable: unemployment_gap
+      name: Baseline
+    - tidy_key: estimates
+      spec: baseline_ols
+      key_variable: lag_inflation
+      name: Persistence
+    - tidy_key: estimates
+      spec: univariate_ols
+      key_variable: unemployment_gap
+      name: Univariate
+
+claims:
+  fail_on_error: false
+  entries:
+    - id: phillips_slope_negative
+      description: "Baseline unemployment gap slope is negative and statistically significant"
+      tidy_key: estimates
+      spec: baseline_ols
+      key_variable: unemployment_gap
+      sign: negative
+      pval_below: 0.05
+    - id: persistence_positive
+      description: "Baseline lagged inflation persistence is positive and statistically significant"
+      tidy_key: estimates
+      spec: baseline_ols
+      key_variable: lag_inflation
+      sign: positive
+      pval_below: 0.05
+
+default_module: reproducible_econ.examples.macro_demo
+
+stages:
+  - name: prepare_data
+    class: PrepareMacroDataStage
+    phase: data
+    produces: [panel, summary_stats]
+    cache: true
+    cache_inputs: [data, project]
+
+  - name: estimate_ols
+    module: reproducible_econ.examples.macro_demo
+    class: EstimatePhillipsStage
+    phase: estimate
+    requires: [panel]
+    produces: [estimates]
+    cache: true
+    cache_inputs: [estimation]
+
+  - name: export_tables
+    module: reproducible_econ.emitters.tables
+    class: LatexTableStage
+    phase: report
+    requires: [summary_stats, estimates]
+    cache: false
+
+  - name: plot_phillips
+    module: reproducible_econ.examples.macro_demo
+    class: PhillipsFigureStage
+    phase: report
+    requires: [panel, estimates]
+    enabled_config: plotting.enabled
+    cache: false
+
+  - name: export_macros
+    module: reproducible_econ.emitters.macros
+    class: LatexMacroStage
+    phase: report
+    requires: [estimates]
+    cache: false
+
+  - name: check_claims
+    module: reproducible_econ.emitters.claims
+    class: ClaimCheckStage
+    phase: report
+    requires: [estimates]
+    produces: [claims_results]
+    cache: false

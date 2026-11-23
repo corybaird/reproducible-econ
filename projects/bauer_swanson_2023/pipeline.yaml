@@ -1,0 +1,290 @@
+includes: []
+
+project:
+  name: bauer_swanson_2023
+  seed: 42
+
+data:
+  fomc_path: ${project_root}/data/raw/bauer_swanson_2023/monetary-policy-surprises-data_FOMC_(original).parquet.gzip
+  monthly_path: ${project_root}/data/raw/bauer_swanson_2023/monetary-policy-surprises-data_Monthly_(original).parquet.gzip
+  start_date: "1988-02-01"
+  end_date: "2019-12-01"
+
+shocks:
+  eurodollar_columns: [ed1, ed2, ed3, ed4]
+  predictors: [nfp_surp, nfp_12m]
+  out_of_set_predictors: [lag_ebp, lag_cpi_yoy]
+  cov_type: HC1
+
+lp:
+  horizon: 24
+  baseline_lags: 6
+  robustness_lags: 12
+  cov_type: HAC
+  outcomes: [treas_2y, log_ip, log_cpi, unemp, ebp]
+  control_pool: [treas_2y, log_ip, log_cpi, unemp, ebp]
+  headline_horizons: [12, 24]
+
+structural:
+  horizon: 24
+  svar_lags: 6
+  svar_robust_lags: 12
+  lpiv_lags: 6
+  lpiv_cov_type: robust
+  impact_bp: 25.0
+  endog_variables: [treas_2y, log_ip, log_cpi, unemp, ebp]
+  policy_variable: treas_2y
+  lpiv_outcomes: [log_ip, log_cpi, unemp, ebp]
+  headline_horizons: [12, 24]
+
+output:
+  cache_dir: .cache/bauer_swanson_2023
+  reports_dir: reports/bauer_swanson_2023
+  tables_dir: ${output.reports_dir}/tables
+  figures_dir: ${output.reports_dir}/figures
+  macros_path: ${output.reports_dir}/macros.tex
+  claims_path: ${output.reports_dir}/claims_report.json
+  timestamped_manifest: false
+
+cache:
+  retain_prior_fingerprints: 2
+
+plotting:
+  enabled: true
+  dpi: 200
+  on_missing_matplotlib: skip
+
+tables:
+  strict: true
+  exports:
+    - key: summary_stats
+      filename: summary_stats.tex
+      caption: "FRBSF Monthly Macro and Monetary Policy Surprise Summary Statistics (1988--2019)"
+      label: "tab:bs_summary_stats"
+      float_format: "%.3f"
+      columns: [variable, mean, std, min, max, n]
+      rename:
+        variable: Variable
+        mean: Mean
+        std: SD
+        min: Min
+        max: Max
+        n: N
+    - key: shock_predictability
+      filename: shock_predictability.tex
+      caption: "Pre-Announcement Predictability of Monetary Policy Surprises (Bauer and Swanson 2023, Table 1 and Out-of-Set Check)"
+      label: "tab:bs_predictability"
+      note: "HC1 robust OLS of raw and PCA surprises on payroll news (Table 1) and of raw vs orthogonalized surprises on out-of-set lagged EBP and YoY CPI inflation (not in the Bauer-Swanson orthogonalization set)."
+      float_format: "%.4f"
+      columns: [spec_name, key_variable, coef, se, pval, r2, n_obs]
+      rename:
+        spec_name: Shock Spec
+        key_variable: Predictor
+        coef: Coef
+        se: SE
+        pval: "p-value"
+        r2: R2
+        n_obs: N
+    - key: lp_headline
+      filename: lp_headline.tex
+      caption: "Local Projection IRFs at 12 and 24 Months: Response to a +100 bp (+1.0 pp) MPS Surprise"
+      label: "tab:bs_lp_headline"
+      note: "Jorda local projections with HAC standard errors. Shock scale: 1-unit (+100 bp / +1.0 pp) monetary policy surprise (1 SD approx. 5 bp; divide by 4 for a +25 bp surprise). log_ip and log_cpi are in percent (100 x ln); treas_2y, unemp, and ebp are in percentage points."
+      float_format: "%.3f"
+      columns: [model, key_variable, horizon, lags, coef, se, pval, n_obs]
+      rename:
+        model: Spec
+        key_variable: Outcome
+        horizon: Horizon
+        lags: Lags
+        coef: Coef
+        se: SE
+        pval: "p-value"
+        n_obs: N
+    - key: model_comparison
+      filename: model_comparison.tex
+      caption: "Structural Model Comparison: Response to a +25 bp Impact Shock on 2Y Treasury Yield (treas_2y)"
+      label: "tab:bs_model_comparison"
+      note: "Proxy-SVAR (6-lag baseline and 12-lag robustness) and LP-IV responses scaled to a +25 bp (+0.25 pp) impact increase in the 2-year Treasury yield (treas_2y). log_ip and log_cpi are in percent (100 x ln); treas_2y, unemp, and ebp are in percentage points."
+      float_format: "%.3f"
+      columns: [model, key_variable, horizon, coef, se, pval, n_obs]
+      na_rep: "--"
+      rename:
+        model: Model
+        key_variable: Outcome
+        horizon: Horizon
+        coef: Coef
+        se: SE
+        pval: "p-value"
+        n_obs: N
+
+latex_macros:
+  output_path: ${output.macros_path}
+  precision: 3
+  short_precision: 2
+  pval_precision: 3
+  fields: [coef, se, pval, n_obs]
+  entries:
+    - tidy_key: shock_predictability
+      spec: raw_mps
+      key_variable: nfp_surp
+      name: RawMpsNfp
+      precision: 4
+      short_precision: 3
+    - tidy_key: shock_predictability
+      spec: raw_mps_outset
+      key_variable: lag_ebp
+      name: RawMpsLagEbp
+      precision: 4
+      short_precision: 3
+    - tidy_key: shock_predictability
+      spec: orth_mps_outset
+      key_variable: lag_ebp
+      name: OrthMpsLagEbp
+      precision: 4
+      short_precision: 3
+    - tidy_key: lp_headline
+      spec: lp_orth_h12
+      key_variable: log_ip
+      name: LpOrthIpTwelve
+    - tidy_key: lp_headline
+      spec: lp_raw_h12
+      key_variable: log_ip
+      name: LpRawIpTwelve
+    - tidy_key: lp_headline
+      spec: lp_orth_h24
+      key_variable: unemp
+      name: LpOrthUnempTwentyFour
+    - tidy_key: lp_headline
+      spec: lp_orth_h12
+      key_variable: ebp
+      name: LpOrthEbpTwelve
+    - tidy_key: model_comparison
+      spec: psvar_orth_h12
+      key_variable: log_ip
+      name: PsvarOrthIpTwelve
+      fields: [coef, n_obs]
+    - tidy_key: model_comparison
+      spec: psvar_orth_h12
+      key_variable: log_cpi
+      name: PsvarOrthCpiTwelve
+      fields: [coef, n_obs]
+    - tidy_key: model_comparison
+      spec: lpiv_orth_h12
+      key_variable: log_ip
+      name: LpivOrthIpTwelve
+
+claims:
+  fail_on_error: false
+  entries:
+    - id: raw_mps_predictable_by_nfp
+      description: "Raw MPS is positively and significantly predicted by prior NFP surprise (Bauer & Swanson 2023, Table 1 column (1), p.19: 'Nonfarm payrolls 0.094 (2.442)', sample 1988:1-2019:12). Repo spec uses only nfp_surp and nfp_12m on month-aggregated surprises, so the estimate (0.130) exceeds the paper's 6-predictor event-level coefficient; tol is wide accordingly"
+      tidy_key: shock_predictability
+      spec: raw_mps
+      key_variable: nfp_surp
+      coef: 0.094
+      tol: 0.05
+      sign: positive
+      pval_below: 0.05
+    - id: orth_mps_out_of_set_exogeneity_ebp
+      description: "Extension (not in paper): orthogonalized MPS shows no predictability from out-of-set lagged EBP (credit spread not in orthogonalization set; raw MPS has p<0.01)"
+      tidy_key: shock_predictability
+      spec: orth_mps_outset
+      key_variable: lag_ebp
+      pval_above: 0.10
+    - id: lp_orth_ip_contraction_h12
+      description: "Orthogonalized LP shows significant industrial production drop at 12m (Bauer & Swanson 2023, Figs 4-6)"
+      tidy_key: lp_headline
+      spec: lp_orth_h12
+      key_variable: log_ip
+      sign: negative
+      pval_below: 0.05
+    - id: lp_orth_unemp_rise_h24
+      description: "Orthogonalized LP shows significant unemployment rise at 24m (Bauer & Swanson 2023, Figs 4-6)"
+      tidy_key: lp_headline
+      spec: lp_orth_h24
+      key_variable: unemp
+      sign: positive
+      pval_below: 0.01
+    - id: lp_orth_ebp_tightening_h12
+      description: "Orthogonalized LP shows significant excess bond premium widening at 12m (Bauer & Swanson 2023, Figs 4-6)"
+      tidy_key: lp_headline
+      spec: lp_orth_h12
+      key_variable: ebp
+      sign: positive
+      pval_below: 0.05
+    - id: psvar_orth_ip_contraction_h12
+      description: "Proxy-SVAR (+25 bp 2Y shock) lowers industrial production at 12m (Bauer & Swanson 2023, Figs 5-6)"
+      tidy_key: model_comparison
+      spec: psvar_orth_h12
+      key_variable: log_ip
+      sign: negative
+    - id: psvar_orth_cpi_no_price_puzzle_h12
+      description: "Proxy-SVAR (+25 bp 2Y shock) lowers CPI at 12m without a price puzzle (Bauer & Swanson 2023, Figs 5-6)"
+      tidy_key: model_comparison
+      spec: psvar_orth_h12
+      key_variable: log_cpi
+      sign: negative
+
+default_module: projects.bauer_swanson_2023.stages
+
+stages:
+  - name: prepare_macro_data
+    class: PrepareMacroDataStage
+    phase: data
+    produces: [fomc_panel, monthly_panel, summary_stats]
+    cache: true
+    cache_inputs: [data, project]
+
+  - name: align_and_test_shocks
+    class: AlignAndTestShocksStage
+    phase: shocks
+    requires: [fomc_panel, monthly_panel]
+    produces: [aligned_panel, shock_predictability]
+    cache: true
+    cache_inputs: [shocks]
+
+  - name: estimate_lp_models
+    class: EstimateLocalProjectionsStage
+    phase: estimate
+    requires: [aligned_panel]
+    produces: [lp_irfs, lp_headline]
+    cache: true
+    cache_inputs: [lp]
+
+  - name: estimate_structural_models
+    class: EstimateStructuralModelsStage
+    phase: estimate
+    requires: [aligned_panel]
+    produces: [structural_irfs, model_comparison]
+    cache: true
+    cache_inputs: [structural]
+
+  - name: export_tables
+    module: reproducible_econ.emitters.tables
+    class: LatexTableStage
+    phase: report
+    requires: [summary_stats, shock_predictability, lp_headline, model_comparison]
+    cache: false
+
+  - name: plot_irfs
+    class: MonetaryIRFFigureStage
+    phase: report
+    requires: [lp_irfs, structural_irfs]
+    enabled_config: plotting.enabled
+    cache: false
+
+  - name: export_macros
+    module: reproducible_econ.emitters.macros
+    class: LatexMacroStage
+    phase: report
+    requires: [shock_predictability, lp_headline, model_comparison]
+    cache: false
+
+  - name: check_claims
+    module: reproducible_econ.emitters.claims
+    class: ClaimCheckStage
+    phase: report
+    requires: [shock_predictability, lp_headline, model_comparison]
+    produces: [claims_results]
+    cache: false

@@ -1,0 +1,193 @@
+includes: []
+
+project:
+  name: gertler_karadi_2015
+  seed: 42
+
+data:
+  data_path: ${project_root}/data/raw/gertler_karadi_2015/GK2015_Data.xlsx
+  sentinel: 123456789.0
+
+svar:
+  target_variables: [gs1, logcpi, logip, ebp]
+  instrument_variable: ff4_tc
+  maxlags: 12
+  irf_horizons: 48
+  claim_horizons: [0, 12, 24]
+  table_horizons: [0, 3, 6, 12, 24]
+
+output:
+  cache_dir: .cache/gertler_karadi_2015
+  reports_dir: reports/gertler_karadi_2015
+  tables_dir: ${output.reports_dir}/tables
+  figures_dir: ${output.reports_dir}/figures
+  macros_path: ${output.reports_dir}/macros.tex
+  claims_path: ${output.reports_dir}/claims_report.json
+  timestamped_manifest: false
+
+cache:
+  retain_prior_fingerprints: 2
+
+plotting:
+  enabled: true
+  dpi: 200
+  on_missing_matplotlib: skip
+
+tables:
+  strict: true
+  exports:
+    - key: irf_headline
+      filename: gk_irf_headline.tex
+      caption: "Gertler and Karadi (2015) Proxy-SVAR: Impulse Responses to a One-Standard-Deviation Monetary Policy Shock"
+      label: "tab:gk_irf_headline"
+      note: "Four-variable proxy-SVAR (gs1, logcpi, logip, ebp) with 12 lags and a constant, instrumenting the gs1 equation with the ff4\_tc high-frequency FOMC surprise. Validated against the MATLAB R2025b / VAR-Toolbox 4.0 reference run (st\_ref\_gk2015\_iv.m). gs1 and ebp responses are in percentage points; logcpi and logip are log-differences (x100)."
+      float_format: "%.6f"
+      columns: [key_variable, horizon, coef, n_obs]
+      na_rep: "--"
+      rename:
+        key_variable: Variable
+        horizon: Horizon
+        coef: Response
+        n_obs: N
+
+latex_macros:
+  output_path: ${output.macros_path}
+  precision: 6
+  short_precision: 3
+  pval_precision: 3
+  fields: [coef, n_obs]
+  entries:
+    - tidy_key: first_stage
+      spec: first_stage
+      key_variable: ff4_tc
+      name: GkFirstStageF
+      fields: [coef, n_obs]
+    - tidy_key: svar_irfs
+      spec: psvar_h0
+      key_variable: gs1
+      name: GkPsvarRateImpact
+      fields: [coef]
+    - tidy_key: svar_irfs
+      spec: psvar_h12
+      key_variable: logip
+      name: GkPsvarIpTwelve
+      fields: [coef]
+    - tidy_key: svar_irfs
+      spec: psvar_h24
+      key_variable: ebp
+      name: GkPsvarEbpTwentyFour
+      fields: [coef]
+
+claims:
+  fail_on_error: false
+  default_tol: 1.0e-7
+  entries:
+    - id: matlab_first_stage_fstat
+      description: "First-stage F for the ff4_tc instrument in the gs1 equation matches the MATLAB reference (gk2015_iv.json key first_stage_F = 21.517004275038246, tstat^2 over 270 common observations)"
+      tidy_key: first_stage
+      spec: first_stage
+      key_variable: ff4_tc
+      coef: 21.517004275038246
+      tol: 1.0e-5
+    - id: matlab_irf_gs1_h0
+      description: "Impact response of gs1 to a one-SD proxy shock matches MATLAB IR[0][0][0] (gk2015_iv.json key IR = 0.19308001258472623 pp)"
+      tidy_key: svar_irfs
+      spec: psvar_h0
+      key_variable: gs1
+      coef: 0.19308001258472623
+    - id: matlab_irf_logip_h0
+      description: "Impact response of logip to a one-SD proxy shock matches MATLAB IR[0][2][0] (gk2015_iv.json key IR = 0.0004576895749850523)"
+      tidy_key: svar_irfs
+      spec: psvar_h0
+      key_variable: logip
+      coef: 0.0004576895749850523
+    - id: matlab_irf_ebp_h0
+      description: "Impact response of ebp to a one-SD proxy shock matches MATLAB IR[0][3][0] (gk2015_iv.json key IR = 0.11185478820607274 pp)"
+      tidy_key: svar_irfs
+      spec: psvar_h0
+      key_variable: ebp
+      coef: 0.11185478820607274
+    - id: matlab_irf_gs1_h12
+      description: "gs1 response at h=12 matches MATLAB IR[12][0][0] (gk2015_iv.json key IR = 0.06451276962855682 pp)"
+      tidy_key: svar_irfs
+      spec: psvar_h12
+      key_variable: gs1
+      coef: 0.06451276962855682
+    - id: matlab_irf_logip_h12
+      description: "logip response at h=12 matches MATLAB IR[12][2][0] (gk2015_iv.json key IR = -0.002609444100457109)"
+      tidy_key: svar_irfs
+      spec: psvar_h12
+      key_variable: logip
+      coef: -0.002609444100457109
+    - id: matlab_irf_ebp_h12
+      description: "ebp response at h=12 matches MATLAB IR[12][3][0] (gk2015_iv.json key IR = 0.01903963157752036 pp)"
+      tidy_key: svar_irfs
+      spec: psvar_h12
+      key_variable: ebp
+      coef: 0.01903963157752036
+    - id: matlab_irf_gs1_h24
+      description: "gs1 response at h=24 matches MATLAB IR[24][0][0] (gk2015_iv.json key IR = -0.08057778678536837 pp)"
+      tidy_key: svar_irfs
+      spec: psvar_h24
+      key_variable: gs1
+      coef: -0.08057778678536837
+    - id: matlab_irf_logip_h24
+      description: "logip response at h=24 matches MATLAB IR[24][2][0] (gk2015_iv.json key IR = -0.0038201694970404587)"
+      tidy_key: svar_irfs
+      spec: psvar_h24
+      key_variable: logip
+      coef: -0.0038201694970404587
+    - id: matlab_irf_ebp_h24
+      description: "ebp response at h=24 matches MATLAB IR[24][3][0] (gk2015_iv.json key IR = 0.013256878187070918 pp)"
+      tidy_key: svar_irfs
+      spec: psvar_h24
+      key_variable: ebp
+      coef: 0.013256878187070918
+
+
+default_module: projects.gertler_karadi_2015.stages
+
+stages:
+  - name: prepare_gk_panel
+    class: PrepareGKPanelStage
+    phase: data
+    produces: [gk_panel]
+    cache: true
+    cache_inputs: [data, project]
+
+  - name: estimate_proxy_svar
+    class: EstimateProxySvarStage
+    phase: estimate
+    requires: [gk_panel]
+    produces: [svar_irfs, irf_headline, first_stage, svar_impact]
+    cache: true
+    cache_inputs: [svar]
+
+  - name: export_irf_table
+    module: reproducible_econ.emitters.tables
+    class: LatexTableStage
+    phase: report
+    requires: [irf_headline]
+    cache: false
+
+  - name: plot_irfs
+    class: GKIRFFigureStage
+    phase: report
+    requires: [svar_irfs, first_stage]
+    enabled_config: plotting.enabled
+    cache: false
+
+  - name: export_macros
+    module: reproducible_econ.emitters.macros
+    class: LatexMacroStage
+    phase: report
+    requires: [first_stage, svar_irfs]
+    cache: false
+
+  - name: check_claims
+    module: reproducible_econ.emitters.claims
+    class: ClaimCheckStage
+    phase: report
+    requires: [first_stage, svar_irfs]
+    produces: [claims_results]
+    cache: false
